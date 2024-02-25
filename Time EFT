@@ -1,0 +1,71 @@
+import dayjs from 'dayjs';
+import dayjsUtc from 'dayjs/plugin/utc';
+import { useTranslation } from 'react-i18next';
+import useDate from '../hooks/useDate.jsx';
+
+dayjs.extend(dayjsUtc);
+
+const SECONDS_IN_MINUTE = 60;
+const MINUTES_IN_HOUR = 60;
+const HOURS_IN_DAY = 24;
+const MILLISECONDS_IN_SECOND = 1000;
+const TARKOV_TIME_RATIO = 7;
+const MOSCOW_UTC_OFFSET_HOURS = 3;
+
+const msToHours = (ms) => ms / MILLISECONDS_IN_SECOND / SECONDS_IN_MINUTE / MINUTES_IN_HOUR;
+
+export function realTimeToTarkovTime(time, left = true) {
+    const offset = msToHours(hrs(MOSCOW_UTC_OFFSET_HOURS)) + (left ? 0 : msToHours(hrs(12)));
+    const tarkovTime = new Date((offset + time.getTime() * TARKOV_TIME_RATIO) % hrs(HOURS_IN_DAY));
+    return tarkovTime;
+}
+
+export function formattedTarkovTime(left = true) {
+    const time = new Date();
+    return dayjs.utc(realTimeToTarkovTime(time, left)).format('HH:mm:ss');
+}
+
+export function formatFuture(ms) {
+    const time = dayjs.utc(ms);
+    return `${time.hour() ? time.hour() + 'hr ' : ''}${time.minute()}min${!time.hour() && !time.minute() ? ' ' + time.second() + 's' : ''}`;
+}
+
+function hrs(num) {
+    return MILLISECONDS_IN_SECOND * SECONDS_IN_MINUTE * MINUTES_IN_HOUR * num;
+}
+
+function MapDetails({ currentMap, duration, players, author, authorLink }) {
+    const { t } = useTranslation();
+    const details = [
+        <div key={`${currentMap}-duration`}>{t('Duration')}: {duration}</div>,
+        <div key={`${currentMap}-players`}>{t('Players')}: {players}</div>,
+    ];
+
+    if (author) {
+        details.push(
+            <div key={`${currentMap}-attribution`}>
+                {t('By')} <span>:</span> <a href={authorLink} target="_blank" rel="noopener noreferrer">{author}</a>
+            </div>
+        );
+    }
+
+    return details;
+}
+
+function Time(props) {
+    const { normalizedName } = props;
+    const time = useDate(new Date(), 50);
+
+    const times = normalizedName === 'factory' ? ['15:28:00', '03:28:00'] : [formattedTarkovTime(true), formattedTarkovTime(false)];
+
+    return (
+        <div className="time-wrapper">
+            {times.map((timeString, index) => (
+                <div key={index}>{timeString}</div>
+            ))}
+            <MapDetails {...props} />
+        </div>
+    );
+}
+
+export default Time;
